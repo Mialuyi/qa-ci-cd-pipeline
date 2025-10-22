@@ -1,0 +1,48 @@
+
+name: QA CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Appium Tests
+        run: |
+          pytest appium_tests/ --alluredir=reports/allure-results || true
+
+      - name: Install JMeter
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jmeter
+
+      - name: Run JMeter Load Test
+        run: |
+          jmeter -n -t jmeter_tests/smartloan_load_test.jmx -l reports/jmeter_results.jtl
+
+      - name: Generate Allure Report
+        run: |
+          npm install -g allure-commandline --save-dev
+          allure generate reports/allure-results --clean -o reports/allure-report
+
+      - name: Upload Test Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: QA_Test_Reports
+          path: reports/allure-report
